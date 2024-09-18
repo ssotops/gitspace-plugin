@@ -22,16 +22,21 @@ fi
 run_tests() {
     local package=$1
     local package_name=$2
+    gum style --foreground 226 "Running tests for $package_name in directory: $(pwd)"
     gum spin --spinner dot --title "Running tests for $package_name..." -- \
         bash -c "go test -v -coverprofile=coverage.out ./$package || handle_error 'Tests failed for $package_name'"
     
-    gum style \
-        --foreground 82 --border-foreground 82 --border normal \
-        --align left --width 70 --margin "1 2" --padding "1 2" \
-        "Test Coverage for $package_name:"
-    
-    go tool cover -func=coverage.out
-    rm coverage.out
+    if [ ! -f coverage.out ]; then
+        gum style --foreground 196 "Coverage file not generated for $package_name"
+    else
+        gum style \
+            --foreground 82 --border-foreground 82 --border normal \
+            --align left --width 70 --margin "1 2" --padding "1 2" \
+            "Test Coverage for $package_name:"
+        
+        go tool cover -func=coverage.out
+        rm coverage.out
+    fi
 }
 
 # Function to run linters

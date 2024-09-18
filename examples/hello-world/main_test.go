@@ -1,9 +1,11 @@
 package main
 
 import (
+	"io"
 	"testing"
 
 	"github.com/charmbracelet/log"
+	"github.com/ssotops/gitspace-plugin"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +25,8 @@ func TestHelloWorldPlugin(t *testing.T) {
 	})
 
 	t.Run("Run", func(t *testing.T) {
-		logger := log.New(log.WithLevel(log.FatalLevel))
+		logger := log.New(io.Discard)
+		logger.SetLevel(log.FatalLevel)
 		err := plugin.Run(logger)
 		assert.NoError(t, err)
 	})
@@ -41,9 +44,14 @@ func TestHelloWorldPlugin(t *testing.T) {
 	})
 
 	t.Run("SetConfig", func(t *testing.T) {
-		// This is a no-op function, so we just ensure it doesn't panic
+		config := gitspace_plugin.PluginConfig{
+			Metadata: gitspace_plugin.PluginMetadata{
+				Name:    "hello-world",
+				Version: "1.0.0",
+			},
+		}
 		assert.NotPanics(t, func() {
-			plugin.SetConfig(struct{}{})
-		})
+    })
+			plugin.SetConfig(config)
 	})
 }
