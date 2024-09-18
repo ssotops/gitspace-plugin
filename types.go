@@ -24,6 +24,8 @@ type PluginMetadata struct {
 	Tags        []string `toml:"tags"`
 }
 
+type Option = huh.Option[string]
+
 // PluginConfig contains the configuration for the plugin
 type PluginConfig struct {
 	Metadata PluginMetadata `toml:"metadata"`

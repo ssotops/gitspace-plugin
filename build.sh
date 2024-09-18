@@ -65,7 +65,7 @@ update_charm_versions() {
     cd - > /dev/null || handle_error "Failed to return to previous directory"
 }
 
-# ASCII Art for gitspace_plugin builder using gum
+# ASCII Art for gitspace-plugin builder using gum
 gum style \
     --foreground 212 --border-foreground 212 --border double \
     --align center --width 70 --margin "1 2" --padding "1 2" \
@@ -74,45 +74,66 @@ gum style \
 # Update main package
 gum spin --spinner dot --title "Updating main package..." -- bash -c "update_charm_versions . || handle_error 'Failed to update main package'"
 
-# Build main package
-gum spin --spinner dot --title "Building main package..." -- bash -c "
-    mkdir -p dist || handle_error 'Failed to create dist directory'
-    go build -o dist/gitspace-plugin . || handle_error 'Failed to build main package'
-"
-
-# Run tests
-gum spin --spinner dot --title "Running tests..." -- bash -c "go test ./... || handle_error 'Some tests failed'"
+# Run tests for main package
+gum spin --spinner dot --title "Running tests for main package..." -- bash -c "go test -v ./... 2>&1 || handle_error 'Some tests failed'"
 
 # Build example plugin
-gum spin --spinner dot --title "Building example plugin..." -- bash -c "
+echo "Building example plugin..."
+(
+    # set -x  # Enable command echoing
     cd examples/hello-world || handle_error 'Failed to change to example plugin directory'
-    update_charm_versions . || handle_error 'Failed to update example plugin'
+    
+    # echo 'Initializing Go module...'
+    if [ ! -f go.mod ]; then
+        go mod init github.com/ssotops/gitspace-plugin/examples/hello-world || handle_error 'Failed to initialize Go module'
+    else
+        # Ensure the module name is correct even if the file exists
+        go mod edit -module=github.com/ssotops/gitspace-plugin/examples/hello-world || handle_error 'Failed to update module name'
+    fi
+    
+    # echo 'Editing go.mod...'
     go mod edit -replace=github.com/ssotops/gitspace-plugin=../../ || handle_error 'Failed to edit go.mod'
+
+    # echo 'Updating local gitspace-plugin...'
+    go get github.com/ssotops/gitspace-plugin@latest || handle_error 'Failed to update local gitspace-plugin'
+    go mod tidy || handle_error 'Failed to tidy go.mod after updating gitspace-plugin'
+    
+    # echo 'Updating Charm versions...'
+    go get github.com/charmbracelet/huh@latest || handle_error 'Failed to update huh'
+    go get github.com/charmbracelet/log@latest || handle_error 'Failed to update log'
+    go get github.com/ssotops/gitspace-plugin@latest || handle_error 'Failed to update gitspace-plugin'
+    
+    # echo 'Running go mod tidy...'
     go mod tidy || handle_error 'Failed to tidy example plugin go.mod'
+    
+    # echo 'Creating dist directory...'
     mkdir -p dist || handle_error 'Failed to create dist directory'
-    CGO_ENABLED=1 go build -buildmode=plugin -o dist/hello-world.so . || handle_error 'Failed to build example plugin .so'
-    go build -o dist/hello-world . || handle_error 'Failed to build example plugin standalone binary'
+    
+    # echo 'Building plugin (.so file)...'
+    CGO_ENABLED=1 go build -v -buildmode=plugin -o dist/hello-world.so . || handle_error 'Failed to build example plugin .so'
+
+    # echo 'Building standalone binary...'
+    go build -v -o dist/hello-world . || handle_error 'Failed to build example plugin standalone binary'
+    
+    # echo 'Returning to root directory...'
     cd ../.. || handle_error 'Failed to return to root directory'
-"
+    
+    # echo 'Build process completed.'
+) 2>&1 | tee build.log  # Capture all output to a log file
 
-# Verify builds
-if [ ! -f "dist/gitspace-plugin" ]; then
-    handle_error "Main gitspace-plugin binary not found"
+# Check if the build was successful
+if [ ! -f "examples/hello-world/dist/hello-world.so" ] || [ ! -f "examples/hello-world/dist/hello-world" ]; then
+    echo "Build failed. See build.log for details."
+    cat build.log
+    handle_error "Build failed"
 fi
 
-if [ ! -f "examples/hello-world/dist/hello-world.so" ]; then
-    handle_error "Example plugin .so file not found"
-fi
-
-if [ ! -f "examples/hello-world/dist/hello-world" ]; then
-    handle_error "Example plugin standalone binary not found"
-fi
+echo "Build verification completed successfully."
 
 gum style \
     --foreground 212 --border-foreground 212 --border normal \
     --align left --width 70 --margin "1 2" --padding "1 2" \
     "Build complete!
-Gitspace Plugin package: ./dist/gitspace-plugin
 Example plugin .so: ./examples/hello-world/dist/hello-world.so
 Example plugin binary: ./examples/hello-world/dist/hello-world"
 
@@ -169,6 +190,5 @@ fi
 gum style \
     --foreground 214 --border-foreground 214 --border normal \
     --align center --width 70 --margin "1 2" --padding "1 2" \
-    "Note: This build script is for the gitspace_plugin package. 
-    To use this package in your Gitspace project, make sure to update 
-    your Gitspace build script and import paths accordingly."
+    "Note: The gitspace-plugin package is built as a library for other packages to import.
+    No local binary is produced for the main package."

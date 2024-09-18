@@ -2,15 +2,13 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/log"
-	"github.com/ssotops/gitspace/gsplugin"
+	gitspace_plugin "github.com/ssotops/gitspace-plugin"
 )
 
-type HelloWorldPlugin struct {
-	config gsplugin.PluginConfig
-}
+type HelloWorldPlugin struct{}
 
 var Plugin HelloWorldPlugin
 
@@ -31,8 +29,8 @@ func (p HelloWorldPlugin) Run(logger *log.Logger) error {
 	return nil
 }
 
-func (p HelloWorldPlugin) GetMenuOption() *huh.Option[string] {
-	return &huh.Option[string]{
+func (p HelloWorldPlugin) GetMenuOption() *gitspace_plugin.Option {
+	return &gitspace_plugin.Option{
 		Key:   "hello-world",
 		Value: "Hello World",
 	}
@@ -43,6 +41,14 @@ func (p HelloWorldPlugin) Standalone(args []string) error {
 	return nil
 }
 
-func (p *HelloWorldPlugin) SetConfig(config gsplugin.PluginConfig) {
-	p.config = config
+func (p HelloWorldPlugin) SetConfig(config gitspace_plugin.PluginConfig) {
+	// This plugin doesn't use any configuration, but we need to implement this method
+}
+
+func main() {
+	plugin := HelloWorldPlugin{}
+	if err := plugin.Standalone(os.Args[1:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
