@@ -9,8 +9,14 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-// LoadPlugin loads a plugin from the given path
-func LoadPlugin(pluginPath string) (GitspacePlugin, error) {
+// LoadPluginFunc is a function type for loading plugins
+type LoadPluginFunc func(string) (GitspacePlugin, error)
+
+// LoadPlugin is the default implementation of LoadPluginFunc
+var LoadPlugin LoadPluginFunc = loadPluginImpl
+
+// loadPluginImpl is the actual implementation of plugin loading
+func loadPluginImpl(pluginPath string) (GitspacePlugin, error) {
 	p, err := plugin.Open(pluginPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open plugin: %w", err)

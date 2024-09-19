@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-  "github.com/charmbracelet/huh"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/log"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,24 +17,19 @@ type MockPlugin struct {
 	config      PluginConfig
 }
 
-func (m *MockPlugin) Name() string                           { return m.name }
-func (m *MockPlugin) Version() string                        { return m.version }
-func (m *MockPlugin) Description() string                    { return m.description }
-func (m *MockPlugin) Run(logger *log.Logger) error           { return nil }
-func (m *MockPlugin) GetMenuOption() *huh.Option[string]     { return nil }
-func (m *MockPlugin) Standalone(args []string) error         { return nil }
-func (m *MockPlugin) SetConfig(config PluginConfig)          { m.config = config }
+func (m *MockPlugin) Name() string                       { return m.name }
+func (m *MockPlugin) Version() string                    { return m.version }
+func (m *MockPlugin) Description() string                { return m.description }
+func (m *MockPlugin) Run(logger *log.Logger) error       { return nil }
+func (m *MockPlugin) GetMenuOption() *huh.Option[string] { return nil }
+func (m *MockPlugin) Standalone(args []string) error     { return nil }
+func (m *MockPlugin) SetConfig(config PluginConfig)      { m.config = config }
 
 func TestLoadPluginWithConfig(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir, err := os.MkdirTemp("", "plugin-test")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tempDir)
-
-	// Create a mock plugin.so file
-	pluginPath := filepath.Join(tempDir, "mock-plugin.so")
-	_, err = os.Create(pluginPath)
-	assert.NoError(t, err)
 
 	// Create a mock gitspace-plugin.toml file
 	configContent := `
@@ -52,12 +47,28 @@ key = "mock-plugin"
 	err = os.WriteFile(filepath.Join(tempDir, "gitspace-plugin.toml"), []byte(configContent), 0644)
 	assert.NoError(t, err)
 
-	// Test LoadPluginWithConfig
-	// Note: This won't actually load a real plugin, but it will test the config parsing
-	_, err = LoadPluginWithConfig(pluginPath)
-	assert.NoError(t, err)
+	// Mock the LoadPlugin function
+	originalLoadPlugin := LoadPlugin
+	defer func() { LoadPlugin = originalLoadPlugin }()
+	LoadPlugin = func(pluginPath string) (GitspacePlugin, error) {
+		return &MockPlugin{
+			name:        "mock-plugin",
+			version:     "1.0.0",
+			description: "A mock plugin for testing",
+		}, nil
+	}
 
-	// Add more specific assertions here once you have a way to mock the plugin loading
+	// Test LoadPluginWithConfig
+	plugin, err := LoadPluginWithConfig(filepath.Join(tempDir, "mock-plugin.so"))
+	assert.NoError(t, err)
+	assert.NotNil(t, plugin)
+
+	mockPlugin, ok := plugin.(*MockPlugin)
+	assert.True(t, ok)
+	assert.Equal(t, "mock-plugin", mockPlugin.Name())
+	assert.Equal(t, "1.0.0", mockPlugin.Version())
+	assert.Equal(t, "A mock plugin for testing", mockPlugin.Description())
+	assert.Equal(t, "Test Author", mockPlugin.config.Metadata.Author)
 }
 
 func TestRunPlugin(t *testing.T) {

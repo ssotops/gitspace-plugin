@@ -43,7 +43,7 @@ func publishRelease(ctx context.Context) error {
 
 	// Build gitspace-plugin
 	build := client.Container().
-		From("golang:1.23.0").
+		From("golang:1.23.1").
 		WithDirectory("/src", src).
 		WithWorkdir("/src").
 		WithExec([]string{
