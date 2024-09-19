@@ -32,4 +32,4 @@ jobs:
           go mod edit -replace github.com/ssotops/gitspace-plugin=../..
           go get dagger.io/dagger@latest
           go mod tidy
-          go run dagger-release.go
+          go run release.go
