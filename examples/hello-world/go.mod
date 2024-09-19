@@ -1,6 +1,6 @@
 module github.com/ssotops/gitspace-plugin/examples/hello-world
 
-go 1.23.1
+go 1.23.0
 
 replace github.com/ssotops/gitspace-plugin => ../../
 
