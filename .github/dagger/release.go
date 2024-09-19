@@ -12,6 +12,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const goVersion = "1.23.1" // Update this to match your go.mod file
+
 func main() {
 	if err := publishRelease(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -43,9 +45,10 @@ func publishRelease(ctx context.Context) error {
 
 	// Build gitspace-plugin
 	build := client.Container().
-		From("golang:1.23.1").
+		From(fmt.Sprintf("golang:%s", goVersion)).
 		WithDirectory("/src", src).
 		WithWorkdir("/src").
+		WithEnvVariable("CGO_ENABLED", "1").
 		WithExec([]string{
 			"go", "build",
 			"-ldflags", fmt.Sprintf("-X 'main.Version=%s'", newVersion),
@@ -61,9 +64,10 @@ func publishRelease(ctx context.Context) error {
 
 	// Run tests
 	test := client.Container().
-		From("golang:1.23.0").
+		From(fmt.Sprintf("golang:%s", goVersion)).
 		WithDirectory("/src", src).
 		WithWorkdir("/src").
+		WithEnvVariable("CGO_ENABLED", "1").
 		WithExec([]string{"go", "test", "./..."})
 
 	if _, err := test.Sync(ctx); err == nil {
