@@ -13,6 +13,7 @@ type GitspacePlugin interface {
 	GetMenuOption() *huh.Option[string]
 	Standalone(args []string) error
 	SetConfig(config PluginConfig)
+  GetDependencies() map[string]string
 }
 
 // PluginMetadata contains additional information about the plugin

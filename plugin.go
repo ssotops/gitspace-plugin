@@ -3,6 +3,7 @@ package gitspace_plugin
 import (
 	"fmt"
 	"os"
+  "os/exec"
 	"path/filepath"
 	"plugin"
 
@@ -14,6 +15,16 @@ type LoadPluginFunc func(string) (GitspacePlugin, error)
 
 // LoadPlugin is the default implementation of LoadPluginFunc
 var LoadPlugin LoadPluginFunc = loadPluginImpl
+
+var SharedDependencies map[string]string
+
+func SetSharedDependencies(deps map[string]string) {
+	SharedDependencies = deps
+}
+
+func GetSharedDependencies() map[string]string {
+	return SharedDependencies
+}
 
 // loadPluginImpl is the actual implementation of plugin loading
 func loadPluginImpl(pluginPath string) (GitspacePlugin, error) {
@@ -42,6 +53,11 @@ func LoadPluginWithConfig(pluginPath string) (GitspacePlugin, error) {
 		return nil, err
 	}
 
+	// Check and update dependencies
+	if err := updatePluginDependencies(plugin, pluginPath); err != nil {
+		return nil, fmt.Errorf("failed to update plugin dependencies: %w", err)
+	}
+
 	pluginDir := filepath.Dir(pluginPath)
 	config, err := ParsePluginConfig(pluginDir)
 	if err != nil {
@@ -64,4 +80,43 @@ func RunStandalonePlugin(plugin GitspacePlugin, args []string) error {
 	logger.SetLevel(log.InfoLevel)
 	logger.Info("Running plugin in standalone mode", "name", plugin.Name(), "version", plugin.Version())
 	return plugin.Standalone(args)
+}
+
+func updatePluginDependencies(plugin GitspacePlugin, pluginPath string) error {
+	pluginDeps := plugin.GetDependencies()
+	sharedDeps := GetSharedDependencies()
+
+	needsUpdate := false
+	for dep, version := range sharedDeps {
+		if pluginDeps[dep] != version {
+			needsUpdate = true
+			break
+		}
+	}
+
+	if needsUpdate {
+		// Update go.mod
+		cmd := exec.Command("go", "mod", "edit")
+		for dep, version := range sharedDeps {
+			cmd.Args = append(cmd.Args, "-require", fmt.Sprintf("%s@%s", dep, version))
+		}
+		cmd.Dir = filepath.Dir(pluginPath)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to update go.mod: %w\nOutput: %s", err, output)
+		}
+
+		// Rebuild plugin
+		if err := rebuildPlugin(pluginPath); err != nil {
+			return fmt.Errorf("failed to rebuild plugin: %w", err)
+		}
+
+		// Reload plugin
+		newPlugin, err := LoadPlugin(pluginPath)
+		if err != nil {
+			return fmt.Errorf("failed to reload updated plugin: %w", err)
+		}
+		*plugin = *newPlugin
+	}
+
+	return nil
 }
