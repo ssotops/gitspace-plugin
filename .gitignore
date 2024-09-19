@@ -4,6 +4,7 @@ build.log
 dist/
 .DS_Store
 .flatignore
+.flatinclude
 archive_*
 logs
 gitspace-plugin
