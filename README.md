@@ -1,6 +1,6 @@
 # Gitspace Plugin
 
-![CI](https://github.com/ssotops/gitspace-plugin/workflows/CI/badge.svg)
+![CI](https://github.com/ssotops/gitspace-plugin/actions/workflows/dagger-release.yml/badge.svg)
 
 ## Overview
 
@@ -53,3 +53,34 @@ To create a new plugin:
 4. Place the `.so` file and `.toml` file in Gitspace's plugins directory.
 
 For detailed examples, refer to the `examples/` directory in this repository.
+
+## CI/CD
+
+This project uses GitHub Actions and Dagger for continuous integration and deployment.
+
+### Running Dagger Locally
+
+To run the Dagger pipeline locally:
+
+1. Ensure you have Go 1.23.1 or later installed.
+2. Navigate to the `.github/dagger` directory:
+   ```
+   cd .github/dagger
+   ```
+3. Run the Dagger script:
+   ```
+   go run release.go
+   ```
+
+Note: Make sure you have the necessary environment variables set, especially `GITHUB_TOKEN` if you're creating releases.
+
+### GitHub Actions Workflow
+
+The CI/CD process is automated using GitHub Actions. On each push to the `main` or `master` branch, the workflow:
+
+1. Builds the plugin
+2. Runs tests
+3. If successful, creates a new release
+
+You can view the workflow file at `.github/workflows/ci.yml`.
+
