@@ -25,5 +25,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd .github/dagger
+          go mod tidy
           go mod download
           go run release.go
