@@ -1,6 +1,6 @@
 # Gitspace Plugin
 
-![CI](https://github.com/ssotops/gitspace-plugin/actions/workflows/dagger-release.yml/badge.svg)
+![CI](https://github.com/ssotops/gitspace-plugin/actions/workflows/ci.yaml/badge.svg)
 
 ## Overview
 
