@@ -27,7 +27,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd .github/scripts
+          cd .github/dagger
           go mod init dagger-release
           go mod edit -replace github.com/ssotops/gitspace-plugin=../..
           go get dagger.io/dagger@latest
