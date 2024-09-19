@@ -77,49 +77,42 @@ gum spin --spinner dot --title "Updating main package..." -- bash -c "update_cha
 # Run tests for main package
 gum spin --spinner dot --title "Running tests for main package..." -- bash -c "go test -v ./... 2>&1 || handle_error 'Some tests failed'"
 
+# Define the correct plugin installation directory
+PLUGIN_DIR="$HOME/.ssot/gitspace/plugins/hello-world"
+
 # Build example plugin
 echo "Building example plugin..."
 (
-    # set -x  # Enable command echoing
     cd examples/hello-world || handle_error 'Failed to change to example plugin directory'
     
-    # echo 'Initializing Go module...'
     if [ ! -f go.mod ]; then
         go mod init github.com/ssotops/gitspace-plugin/examples/hello-world || handle_error 'Failed to initialize Go module'
     else
-        # Ensure the module name is correct even if the file exists
         go mod edit -module=github.com/ssotops/gitspace-plugin/examples/hello-world || handle_error 'Failed to update module name'
     fi
     
-    # echo 'Editing go.mod...'
     go mod edit -replace=github.com/ssotops/gitspace-plugin=../../ || handle_error 'Failed to edit go.mod'
 
-    # echo 'Updating local gitspace-plugin...'
     go get github.com/ssotops/gitspace-plugin@latest || handle_error 'Failed to update local gitspace-plugin'
     go mod tidy || handle_error 'Failed to tidy go.mod after updating gitspace-plugin'
     
-    # echo 'Updating Charm versions...'
     go get github.com/charmbracelet/huh@latest || handle_error 'Failed to update huh'
     go get github.com/charmbracelet/log@latest || handle_error 'Failed to update log'
     go get github.com/ssotops/gitspace-plugin@latest || handle_error 'Failed to update gitspace-plugin'
     
-    # echo 'Running go mod tidy...'
     go mod tidy || handle_error 'Failed to tidy example plugin go.mod'
     
-    # echo 'Creating dist directory...'
     mkdir -p dist || handle_error 'Failed to create dist directory'
     
-    # echo 'Building plugin (.so file)...'
     CGO_ENABLED=1 go build -v -buildmode=plugin -o dist/hello-world.so . || handle_error 'Failed to build example plugin .so'
 
-    # echo 'Building standalone binary...'
     go build -v -o dist/hello-world . || handle_error 'Failed to build example plugin standalone binary'
     
-    # echo 'Returning to root directory...'
+    echo "Contents of dist directory:"
+    ls -l dist
+
     cd ../.. || handle_error 'Failed to return to root directory'
-    
-    # echo 'Build process completed.'
-) 2>&1 | tee build.log  # Capture all output to a log file
+) 2>&1 | tee build.log
 
 # Check if the build was successful
 if [ ! -f "examples/hello-world/dist/hello-world.so" ] || [ ! -f "examples/hello-world/dist/hello-world" ]; then
@@ -138,18 +131,28 @@ Example plugin .so: ./examples/hello-world/dist/hello-world.so
 Example plugin binary: ./examples/hello-world/dist/hello-world"
 
 # Ask if user wants to install the example plugin
-if gum confirm "Do you want to install the example plugin to ~/.gitspace/plugins?"; then
+if gum confirm "Do you want to install the example plugin to $PLUGIN_DIR?"; then
     # Create plugins directory if it doesn't exist
-    mkdir -p ~/.gitspace/plugins || handle_error "Failed to create plugins directory"
+    mkdir -p "$PLUGIN_DIR" || handle_error "Failed to create plugins directory"
 
-    # Copy example plugin to the plugins directory
-    cp examples/hello-world/dist/hello-world.so ~/.gitspace/plugins/ || handle_error "Failed to copy plugin .so file"
-    cp examples/hello-world/gitspace-plugin.toml ~/.gitspace/plugins/hello-world.toml || handle_error "Failed to copy plugin toml file"
+    # Copy the built .so file
+    cp examples/hello-world/dist/hello-world.so "$PLUGIN_DIR/" || handle_error "Failed to copy plugin .so file"
+    
+    # Optionally copy the binary (uncomment if needed)
+    # cp examples/hello-world/dist/hello-world "$PLUGIN_DIR/" || handle_error "Failed to copy plugin binary"
+
+    # Copy configuration files only if they don't exist
+    if [ ! -f "$PLUGIN_DIR/gitspace-plugin.toml" ]; then
+        cp examples/hello-world/gitspace-plugin.toml "$PLUGIN_DIR/" || handle_error "Failed to copy plugin toml file"
+    fi
+    if [ ! -f "$PLUGIN_DIR/go.mod" ]; then
+        cp examples/hello-world/go.mod "$PLUGIN_DIR/" || handle_error "Failed to copy go.mod file"
+    fi
 
     gum style \
         --foreground 82 --border-foreground 82 --border normal \
         --align center --width 70 --margin "1 2" --padding "1 2" \
-        "Example plugin installed to ~/.gitspace/plugins/"
+        "Example plugin installed to $PLUGIN_DIR"
 else
     gum style \
         --foreground 208 --border-foreground 208 --border normal \
@@ -157,9 +160,10 @@ else
         "Example plugin was not installed."
 fi
 
+
 # Print installed plugins
 echo "Currently installed plugins:"
-for plugin in ~/.gitspace/plugins/*.so; do
+for plugin in "$PLUGIN_DIR"/*.so; do
     if [ -f "$plugin" ]; then
         plugin_name=$(basename "$plugin" .so)
         gum style \
@@ -169,9 +173,9 @@ for plugin in ~/.gitspace/plugins/*.so; do
     fi
 done
 
-# Print tree structure of plugins directory
+# Update the tree output to use the correct directory
 if command -v tree &> /dev/null; then
-    tree_output=$(tree -L 2 ~/.gitspace/plugins)
+    tree_output=$(tree -L 2 "$PLUGIN_DIR")
     gum style \
         --foreground 226 --border-foreground 226 --border double \
         --align left --width 70 --margin "1 2" --padding "1 2" \
@@ -184,7 +188,7 @@ else
         --align left --width 70 --margin "1 2" --padding "1 2" \
         "Plugins Directory Structure:
 
-$(ls -R ~/.gitspace/plugins)"
+$(ls -R "$PLUGIN_DIR")"
 fi
 
 gum style \
