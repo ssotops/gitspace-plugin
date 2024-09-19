@@ -3,7 +3,7 @@ package gitspace_plugin
 import (
 	"fmt"
 	"os"
-  "os/exec"
+	"os/exec"
 	"path/filepath"
 	"plugin"
 
@@ -115,8 +115,22 @@ func updatePluginDependencies(plugin GitspacePlugin, pluginPath string) error {
 		if err != nil {
 			return fmt.Errorf("failed to reload updated plugin: %w", err)
 		}
-		*plugin = *newPlugin
+		// Instead of assigning pointers, update the interface
+		if updatablePlugin, ok := plugin.(interface{ Update(GitspacePlugin) }); ok {
+			updatablePlugin.Update(newPlugin)
+		} else {
+			return fmt.Errorf("plugin does not support updating")
+		}
 	}
 
+	return nil
+}
+
+func rebuildPlugin(pluginPath string) error {
+	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", pluginPath)
+	cmd.Dir = filepath.Dir(pluginPath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to rebuild plugin: %w\nOutput: %s", err, output)
+	}
 	return nil
 }

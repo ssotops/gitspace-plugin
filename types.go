@@ -1,8 +1,8 @@
 package gitspace_plugin
 
 import (
-    "github.com/charmbracelet/huh"
-    "github.com/charmbracelet/log"
+	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/log"
 )
 
 type GitspacePlugin interface {
@@ -13,7 +13,8 @@ type GitspacePlugin interface {
 	GetMenuOption() *huh.Option[string]
 	Standalone(args []string) error
 	SetConfig(config PluginConfig)
-  GetDependencies() map[string]string
+	GetDependencies() map[string]string
+	Update(GitspacePlugin)
 }
 
 // PluginMetadata contains additional information about the plugin
