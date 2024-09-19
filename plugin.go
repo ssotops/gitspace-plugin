@@ -1,6 +1,8 @@
 package gitspace_plugin
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -24,6 +26,38 @@ func SetSharedDependencies(deps map[string]string) {
 
 func GetSharedDependencies() map[string]string {
 	return SharedDependencies
+}
+
+func GetCurrentDependencies() (map[string]string, error) {
+	cmd := exec.Command("go", "list", "-m", "-json", "all")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var modules []struct {
+		Path    string
+		Version string
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(output))
+	for decoder.More() {
+		var module struct {
+			Path    string
+			Version string
+		}
+		if err := decoder.Decode(&module); err != nil {
+			return nil, err
+		}
+		modules = append(modules, module)
+	}
+
+	dependencies := make(map[string]string)
+	for _, module := range modules {
+		dependencies[module.Path] = module.Version
+	}
+
+	return dependencies, nil
 }
 
 // loadPluginImpl is the actual implementation of plugin loading
