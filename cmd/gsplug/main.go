@@ -8,6 +8,8 @@ import (
 	"github.com/ssotops/gitspace-plugin/gsplug"
 )
 
+const version = "1.0.0" // You can update this version number as needed
+
 func main() {
 	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	buildAll := buildCmd.Bool("all", false, "Build all plugins")
@@ -16,8 +18,10 @@ func main() {
 
 	updateVersionCmd := flag.NewFlagSet("update-version", flag.ExitOnError)
 
+	versionCmd := flag.NewFlagSet("version", flag.ExitOnError)
+
 	if len(os.Args) < 2 {
-		fmt.Println("Expected 'build', 'update-deps', or 'update-version' subcommands")
+		fmt.Println("Expected 'build', 'update-deps', 'update-version', or 'version' subcommands")
 		os.Exit(1)
 	}
 
@@ -62,8 +66,12 @@ func main() {
 		}
 		fmt.Println("Version file updated successfully")
 
+	case "version":
+		versionCmd.Parse(os.Args[2:])
+		fmt.Printf("gsplug version %s\n", version)
+
 	default:
-		fmt.Println("Expected 'build', 'update-deps', or 'update-version' subcommands")
+		fmt.Println("Expected 'build', 'update-deps', 'update-version', or 'version' subcommands")
 		os.Exit(1)
 	}
 }

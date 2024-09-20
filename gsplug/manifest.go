@@ -5,23 +5,6 @@ import (
 	"os"
 )
 
-type PluginManifest struct {
-	Metadata struct {
-		Name        string `toml:"name"`
-		Version     string `toml:"version"`
-		Description string `toml:"description"`
-		Author      string `toml:"author"`
-	} `toml:"metadata"`
-	Menu struct {
-		Title string `toml:"title"`
-		Key   string `toml:"key"`
-	} `toml:"menu"`
-	Sources []struct {
-		Path       string `toml:"path"`
-		EntryPoint string `toml:"entry_point"`
-	} `toml:"sources"`
-}
-
 func ReadManifest(path string) (*PluginManifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

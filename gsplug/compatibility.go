@@ -17,11 +17,6 @@ const (
 	VersionFile        = "gitspace-version.json"
 )
 
-type VersionInfo struct {
-	GitspaceVersion string `json:"gitspace_version"`
-	PluginAPIVersion string `json:"plugin_api_version"`
-}
-
 // FetchLatestGitspaceVersion fetches the latest Gitspace version from GitHub
 func FetchLatestGitspaceVersion() (string, error) {
 	resp, err := http.Get(GitspaceVersionURL)
