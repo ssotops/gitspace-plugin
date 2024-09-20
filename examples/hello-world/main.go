@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 
 	"github.com/charmbracelet/log"
 	"github.com/ssotops/gitspace-plugin"
@@ -53,9 +51,10 @@ func (p HelloWorldPlugin) GetDependencies() map[string]string {
 	return gitspace_plugin.GetSharedDependencies()
 }
 
-func (p HelloWorldPlugin) Update(newPlugin gitspace_plugin.GitspacePlugin) {
-	// This method is called when the plugin is updated
-	// For this simple plugin, we don't need to do anything
+func (p *HelloWorldPlugin) Update(newPlugin gitspace_plugin.GitspacePlugin) {
+	if newP, ok := newPlugin.(*HelloWorldPlugin); ok {
+		*p = *newP
+	}
 }
 
 func main() {
@@ -64,55 +63,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-// The following functions are not part of the plugin interface
-// They are here for demonstration purposes and to fix the build errors
-
-func updatePluginDependencies(plugin gitspace_plugin.GitspacePlugin, pluginPath string) error {
-	pluginDeps := plugin.GetDependencies()
-	sharedDeps := gitspace_plugin.GetSharedDependencies()
-
-	needsUpdate := false
-	for dep, version := range sharedDeps {
-		if pluginDeps[dep] != version {
-			needsUpdate = true
-			break
-		}
-	}
-
-	if needsUpdate {
-		// Update go.mod
-		cmd := exec.Command("go", "mod", "edit")
-		for dep, version := range sharedDeps {
-			cmd.Args = append(cmd.Args, "-require", fmt.Sprintf("%s@%s", dep, version))
-		}
-		cmd.Dir = filepath.Dir(pluginPath)
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("failed to update go.mod: %w\nOutput: %s", err, output)
-		}
-
-		// Rebuild plugin
-		if err := rebuildPlugin(pluginPath); err != nil {
-			return fmt.Errorf("failed to rebuild plugin: %w", err)
-		}
-
-		// Reload plugin
-		newPlugin, err := gitspace_plugin.LoadPlugin(pluginPath)
-		if err != nil {
-			return fmt.Errorf("failed to reload updated plugin: %w", err)
-		}
-		plugin.Update(newPlugin)
-	}
-
-	return nil
-}
-
-func rebuildPlugin(pluginPath string) error {
-	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", pluginPath)
-	cmd.Dir = filepath.Dir(pluginPath)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to rebuild plugin: %w\nOutput: %s", err, output)
-	}
-	return nil
 }

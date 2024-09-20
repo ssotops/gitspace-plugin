@@ -190,11 +190,20 @@ func updatePluginDependencies(plugin GitspacePlugin, pluginPath string) error {
 		// Update go.mod
 		cmd := exec.Command("go", "mod", "edit")
 		for dep, version := range sharedDeps {
-			cmd.Args = append(cmd.Args, "-require", fmt.Sprintf("%s@%s", dep, version))
+			if version != "" {
+				cmd.Args = append(cmd.Args, "-require", fmt.Sprintf("%s@%s", dep, version))
+			}
 		}
 		cmd.Dir = filepath.Dir(pluginPath)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("failed to update go.mod: %w\nOutput: %s", err, output)
+		}
+
+		// Run go mod tidy
+		tidyCmd := exec.Command("go", "mod", "tidy")
+		tidyCmd.Dir = filepath.Dir(pluginPath)
+		if output, err := tidyCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to tidy go.mod: %w\nOutput: %s", err, output)
 		}
 
 		// Rebuild plugin
@@ -207,7 +216,8 @@ func updatePluginDependencies(plugin GitspacePlugin, pluginPath string) error {
 		if err != nil {
 			return fmt.Errorf("failed to reload updated plugin: %w", err)
 		}
-		// Instead of assigning pointers, update the interface
+
+		// Update the plugin interface
 		if updatablePlugin, ok := plugin.(interface{ Update(GitspacePlugin) }); ok {
 			updatablePlugin.Update(newPlugin)
 		} else {
