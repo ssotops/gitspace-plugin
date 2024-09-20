@@ -5,6 +5,16 @@ import (
 	"github.com/charmbracelet/log"
 )
 
+// GitspaceCatalog struct needs to be defined
+type GitspaceCatalog struct {
+	Plugins map[string]CatalogPlugin
+}
+
+type CatalogPlugin struct {
+	Path string
+	// Add other necessary fields
+}
+
 type GitspacePlugin interface {
 	Name() string
 	Version() string

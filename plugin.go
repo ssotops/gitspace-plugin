@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"plugin"
 
 	"github.com/charmbracelet/log"
+	"github.com/pelletier/go-toml/v2"
 )
 
 // LoadPluginFunc is a function type for loading plugins
@@ -84,7 +87,15 @@ func loadPluginImpl(pluginPath string) (GitspacePlugin, error) {
 func LoadPluginWithConfig(pluginPath string) (GitspacePlugin, error) {
 	plugin, err := LoadPlugin(pluginPath)
 	if err != nil {
-		return nil, err
+		// If there's an error loading the plugin, try rebuilding it
+		if rebuildErr := rebuildAndLoadPlugin(pluginPath); rebuildErr != nil {
+			return nil, fmt.Errorf("failed to load plugin and rebuild failed: %w", rebuildErr)
+		}
+		// Try loading the plugin again after rebuilding
+		plugin, err = LoadPlugin(pluginPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load plugin after rebuild: %w", err)
+		}
 	}
 
 	// Check and update dependencies
@@ -100,6 +111,53 @@ func LoadPluginWithConfig(pluginPath string) (GitspacePlugin, error) {
 
 	plugin.SetConfig(config)
 	return plugin, nil
+}
+
+func rebuildAndLoadPlugin(pluginPath string) error {
+	pluginDir := filepath.Dir(pluginPath)
+
+	// Update go.mod to use the same versions as Gitspace
+	if err := updateGoMod(pluginDir); err != nil {
+		return fmt.Errorf("failed to update go.mod: %w", err)
+	}
+
+	// Rebuild the plugin
+	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", pluginPath)
+	cmd.Dir = pluginDir
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=1")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to rebuild plugin: %w\nOutput: %s", err, output)
+	}
+
+	return nil
+}
+
+func updateGoMod(pluginDir string) error {
+	// Get Gitspace's dependencies
+	gitspaceDeps, err := GetCurrentDependencies()
+	if err != nil {
+		return fmt.Errorf("failed to get Gitspace dependencies: %w", err)
+	}
+
+	// Update go.mod
+	for dep, version := range gitspaceDeps {
+		cmd := exec.Command("go", "get", fmt.Sprintf("%s@%s", dep, version))
+		cmd.Dir = pluginDir
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to update dependency %s: %w\nOutput: %s", dep, err, output)
+		}
+	}
+
+	// Run go mod tidy
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = pluginDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to tidy go.mod: %w\nOutput: %s", err, output)
+	}
+
+	return nil
 }
 
 // RunPlugin runs the given plugin
@@ -180,8 +238,6 @@ func UpdatePluginDependencies(plugin GitspacePlugin) error {
 
 // getPluginPath is a helper function to get the path of a loaded plugin
 func getPluginPath(plugin GitspacePlugin) (string, error) {
-	// This is a simplified implementation. In a real-world scenario,
-	// you might need a more robust way to determine the plugin's path.
 	pluginsDir := filepath.Join(os.Getenv("HOME"), ".ssot", "gitspace", "plugins")
 	pluginPath := filepath.Join(pluginsDir, plugin.Name(), plugin.Name()+".so")
 
@@ -190,4 +246,110 @@ func getPluginPath(plugin GitspacePlugin) (string, error) {
 	}
 
 	return pluginPath, nil
+}
+
+// Additional functions from the first attachment
+
+func installFromGitspaceCatalog(logger *log.Logger, catalogItem string) error {
+	owner := "ssotops"
+	repo := "gitspace-catalog"
+	defaultBranch := "master"
+	catalog, err := fetchGitspaceCatalog(owner, repo)
+	if err != nil {
+		return fmt.Errorf("failed to fetch Gitspace Catalog: %w", err)
+	}
+
+	plugin, ok := catalog.Plugins[catalogItem]
+	if !ok {
+		return fmt.Errorf("plugin %s not found in Gitspace Catalog", catalogItem)
+	}
+
+	if plugin.Path == "" {
+		return fmt.Errorf("no path found for plugin %s in Gitspace Catalog", catalogItem)
+	}
+
+	rawGitHubURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, defaultBranch, plugin.Path)
+
+	pluginsDir, err := getPluginsDir()
+	if err != nil {
+		return fmt.Errorf("failed to get plugins directory: %w", err)
+	}
+
+	pluginDir := filepath.Join(pluginsDir, catalogItem)
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		return fmt.Errorf("failed to create plugin directory: %w", err)
+	}
+
+	manifestURL := fmt.Sprintf("%s/gitspace-plugin.toml", rawGitHubURL)
+	manifestPath := filepath.Join(pluginDir, "gitspace-plugin.toml")
+	err = downloadFile(manifestURL, manifestPath)
+	if err != nil {
+		return fmt.Errorf("failed to download gitspace-plugin.toml: %w", err)
+	}
+
+	soURL := fmt.Sprintf("%s/dist/%s.so", rawGitHubURL, catalogItem)
+	soPath := filepath.Join(pluginDir, catalogItem+".so")
+	err = downloadFile(soURL, soPath)
+	if err != nil {
+		return fmt.Errorf("failed to download %s.so: %w", catalogItem, err)
+	}
+
+	logger.Info("Plugin installed successfully", "name", catalogItem, "path", pluginDir)
+	return nil
+}
+
+func downloadFile(url string, filepath string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status: %s", resp.Status)
+	}
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func loadPluginManifest(path string) (*PluginManifest, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read manifest file: %w", err)
+	}
+
+	var manifest PluginManifest
+	err = toml.Unmarshal(data, &manifest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode manifest: %w", err)
+	}
+	return &manifest, nil
+}
+
+// Helper function to get plugins directory
+func getPluginsDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
+	pluginsDir := filepath.Join(homeDir, ".ssot", "gitspace", "plugins")
+
+	if err := os.MkdirAll(pluginsDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create plugins directory: %w", err)
+	}
+
+	return pluginsDir, nil
+}
+
+// This function needs to be implemented or imported from the appropriate package
+func fetchGitspaceCatalog(owner, repo string) (*GitspaceCatalog, error) {
+	// Implementation needed
+	return nil, fmt.Errorf("fetchGitspaceCatalog not implemented")
 }

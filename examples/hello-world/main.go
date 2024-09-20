@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/charmbracelet/log"
-	gitspace_plugin "github.com/ssotops/gitspace-plugin"
+	"github.com/ssotops/gitspace-plugin"
 )
 
 type HelloWorldPlugin struct{}
