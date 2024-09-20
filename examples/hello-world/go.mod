@@ -6,7 +6,7 @@ replace github.com/ssotops/gitspace-plugin => ../../
 
 require (
 	github.com/charmbracelet/log v0.4.0
-	github.com/ssotops/gitspace-plugin v1.0.4
+	github.com/ssotops/gitspace-plugin v1.0.5
 	github.com/stretchr/testify v1.9.0
 )
 

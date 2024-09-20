@@ -168,3 +168,26 @@ func rebuildPlugin(pluginPath string) error {
 	}
 	return nil
 }
+
+// UpdatePluginDependencies is the public function to update a plugin's dependencies
+func UpdatePluginDependencies(plugin GitspacePlugin) error {
+	pluginPath, err := getPluginPath(plugin)
+	if err != nil {
+		return fmt.Errorf("failed to get plugin path: %w", err)
+	}
+	return updatePluginDependencies(plugin, pluginPath)
+}
+
+// getPluginPath is a helper function to get the path of a loaded plugin
+func getPluginPath(plugin GitspacePlugin) (string, error) {
+	// This is a simplified implementation. In a real-world scenario,
+	// you might need a more robust way to determine the plugin's path.
+	pluginsDir := filepath.Join(os.Getenv("HOME"), ".ssot", "gitspace", "plugins")
+	pluginPath := filepath.Join(pluginsDir, plugin.Name(), plugin.Name()+".so")
+
+	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("plugin file not found: %s", pluginPath)
+	}
+
+	return pluginPath, nil
+}
