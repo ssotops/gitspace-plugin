@@ -113,8 +113,24 @@ build_package() {
         fi
     fi
     
+    if [ "$build_mode" == "plugin" ] || [ "$build_mode" == "both" ]; then
+        plugin_cmd="go build -buildmode=plugin -o $original_dir/$dist_dir/${output}.so ."
+        echo "Running command: $plugin_cmd"
+        plugin_output=$(eval $plugin_cmd 2>&1)
+        plugin_exit_code=$?
+        if [ $plugin_exit_code -eq 0 ]; then
+            gum style \
+                --foreground 82 --border-foreground 82 --border normal \
+                --align center --width 70 --margin "1 2" --padding "1 2" \
+                "$name plugin built successfully in $dist_dir/${output}.so"
+        else
+            handle_error "Failed to build $name plugin" "$plugin_output"
+        fi
+    fi
+    
     if [ "$build_mode" == "binary" ] || [ "$build_mode" == "both" ]; then
         binary_cmd="go build -o $original_dir/$dist_dir/$output ."
+        echo "Running command: $binary_cmd"
         binary_output=$(eval $binary_cmd 2>&1)
         binary_exit_code=$?
         if [ $binary_exit_code -eq 0 ]; then
@@ -125,6 +141,14 @@ build_package() {
         else
             handle_error "Failed to build $name binary" "$binary_output"
         fi
+    fi
+    
+    # Copy gitspace-plugin.toml to dist directory
+    if [ -f "$dir/gitspace-plugin.toml" ]; then
+        cp "$dir/gitspace-plugin.toml" "$original_dir/$dist_dir/"
+        echo "Copied gitspace-plugin.toml to $dist_dir/"
+    else
+        echo "Warning: gitspace-plugin.toml not found in $dir"
     fi
     
     echo "Changing back to original directory"

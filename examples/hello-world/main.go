@@ -5,6 +5,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -20,7 +21,18 @@ type HelloWorldPlugin struct {
 
 func (p *HelloWorldPlugin) Init() error {
 	var err error
-	p.manifest, err = gsplug.ReadManifest("gitspace-plugin.toml")
+
+	// Get the directory of the current executable
+	exePath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	exeDir := filepath.Dir(exePath)
+
+	// Construct the path to gitspace-plugin.toml relative to the executable
+	manifestPath := filepath.Join(exeDir, "gitspace-plugin.toml")
+
+	p.manifest, err = gsplug.ReadManifest(manifestPath)
 	if err != nil {
 		return err
 	}
