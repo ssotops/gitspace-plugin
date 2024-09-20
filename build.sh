@@ -100,9 +100,9 @@ build_package() {
     
     echo "Building $name..."
     if [ "$build_mode" == "plugin" ]; then
-        build_cmd="go build -buildmode=plugin -o $dist_dir/$output"
+        build_cmd="go build -buildmode=plugin -o $original_dir/$dist_dir/$output ."
     else
-        build_cmd="go build -o $dist_dir/$output"
+        build_cmd="go build -o $original_dir/$dist_dir/$output ."
     fi
     
     build_output=$($build_cmd 2>&1)
