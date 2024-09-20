@@ -71,11 +71,23 @@ gum style \
     --align center --width 70 --margin "1 2" --padding "1 2" \
     "Gitspace Plugin Builder"
 
+# Add this before building the hello-world plugin
+gum spin --spinner dot --title "Cleaning hello-world plugin..." -- bash -c "cd examples/hello-world && go clean -modcache && rm -f go.sum || handle_error 'Failed to clean hello-world plugin'"
+
+# Then proceed with building
+gum spin --spinner dot --title "Building hello-world example plugin..." -- bash -c "cd examples/hello-world && go mod tidy && go build -buildmode=plugin -o hello-world.so . || handle_error 'Failed to build hello-world plugin'"
+
 # Update main package
 gum spin --spinner dot --title "Updating main package..." -- bash -c "update_charm_versions . || handle_error 'Failed to update main package'"
 
 # Run tests for main package
 gum spin --spinner dot --title "Running tests for main package..." -- bash -c "go test -v ./... 2>&1 || handle_error 'Some tests failed'"
+
+# Build gitspace-plugin
+gum spin --spinner dot --title "Building gitspace-plugin..." -- bash -c "go build ./... || handle_error 'Failed to build gitspace-plugin'"
+
+# Build hello-world example plugin
+gum spin --spinner dot --title "Building hello-world example plugin..." -- bash -c "cd examples/hello-world && go build -buildmode=plugin -o hello-world.so . || handle_error 'Failed to build hello-world plugin'"
 
 # Define the correct plugin installation directory
 PLUGIN_DIR="$HOME/.ssot/gitspace/plugins/hello-world"
@@ -90,23 +102,13 @@ if gum confirm "Do you want to install the example plugin to $PLUGIN_DIR?"; then
     # Create plugins directory
     mkdir -p "$PLUGIN_DIR" || handle_error "Failed to create plugins directory"
 
-    # Copy the entire hello-world directory
+    # Copy all files from the hello-world directory, including the built .so file
     cp -R examples/hello-world/* "$PLUGIN_DIR/" || handle_error "Failed to copy plugin files"
 
-    # Update go.mod file to remove the replace directive and use the latest version
-    (
-        cd "$PLUGIN_DIR" || handle_error "Failed to change to plugin directory"
-        go mod edit -dropreplace github.com/ssotops/gitspace-plugin
-        go get github.com/ssotops/gitspace-plugin@latest
-        go mod tidy
-    ) || handle_error "Failed to update go.mod file"
+gum spin --spinner dot --title "Updating plugin dependencies..." -- bash -c "cd $PLUGIN_DIR && go mod tidy && go get -u ./... && go mod tidy || handle_error 'Failed to update plugin dependencies'"
 
-    # Build the plugin in the installation directory
-    (
-        cd "$PLUGIN_DIR" || handle_error "Failed to change to plugin directory"
-        CGO_ENABLED=1 go build -v -buildmode=plugin -o hello-world.so . || handle_error "Failed to build plugin .so file"
-        go build -v -o hello-world . || handle_error "Failed to build plugin standalone binary"
-    )
+    # Ensure the .so file is executable
+    chmod +x "$PLUGIN_DIR/hello-world.so" || handle_error "Failed to make plugin .so file executable"
 
     gum style \
         --foreground 82 --border-foreground 82 --border normal \
