@@ -7,3 +7,7 @@ author = "ssotops"
 [menu]
 title = "Hello World"
 key = "hello-world"
+
+[[sources]]
+path = "main.go"
+entry_point = "Plugin"

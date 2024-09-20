@@ -27,6 +27,8 @@ type GitspacePlugin interface {
 	Update(GitspacePlugin)
 }
 
+// TODO: Refactor and simplify types below
+
 // PluginMetadata contains additional information about the plugin
 type PluginMetadata struct {
 	Name        string   `toml:"name"`
@@ -48,19 +50,18 @@ type PluginConfig struct {
 }
 
 type PluginManifest struct {
-	Plugin struct {
+	Metadata struct {
 		Name        string `toml:"name"`
 		Version     string `toml:"version"`
-		Description string `toml:"description,omitempty"`
-		Author      string `toml:"author,omitempty"`
-		Sources     []struct {
-			Path       string `toml:"path"`
-			EntryPoint string `toml:"entry_point"`
-			Repository struct {
-				Type   string `toml:"type,omitempty"`
-				URL    string `toml:"url,omitempty"`
-				Branch string `toml:"branch,omitempty"`
-			} `toml:"repository,omitempty"`
-		} `toml:"sources"`
-	} `toml:"plugin"`
+		Description string `toml:"description"`
+		Author      string `toml:"author"`
+	} `toml:"metadata"`
+	Menu struct {
+		Title string `toml:"title"`
+		Key   string `toml:"key"`
+	} `toml:"menu"`
+	Sources []struct {
+		Path       string `toml:"path"`
+		EntryPoint string `toml:"entry_point,omitempty"`
+	} `toml:"sources"`
 }

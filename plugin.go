@@ -340,6 +340,11 @@ func loadPluginManifest(path string) (*PluginManifest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode manifest: %w", err)
 	}
+
+	if manifest.Metadata.Name == "" {
+		return nil, fmt.Errorf("plugin name is missing in the manifest file")
+	}
+
 	return &manifest, nil
 }
 
