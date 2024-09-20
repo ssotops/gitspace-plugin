@@ -5,7 +5,7 @@ go 1.23.1
 require (
 	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/charmbracelet/log v0.4.0
-	github.com/ssotops/gitspace-plugin v1.0.11
+	github.com/ssotops/gitspace-plugin v1.0.12
 )
 
 require (
