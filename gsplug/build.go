@@ -14,6 +14,21 @@ func BuildPlugin(pluginDir string) error {
 		return fmt.Errorf("plugin directory does not exist: %s", pluginDir)
 	}
 
+	// Read the plugin manifest
+	manifest, err := ReadManifest(filepath.Join(pluginDir, "gitspace-plugin.toml"))
+	if err != nil {
+		return fmt.Errorf("failed to read plugin manifest: %w", err)
+	}
+
+	// Check compatibility
+	compatible, err := CheckCompatibility(manifest.Metadata.Version)
+	if err != nil {
+		return fmt.Errorf("failed to check compatibility: %w", err)
+	}
+	if !compatible {
+		return fmt.Errorf("plugin version %s is not compatible with the current Gitspace version", manifest.Metadata.Version)
+	}
+
 	// Update dependencies
 	if err := UpdatePluginDependencies(pluginDir); err != nil {
 		return fmt.Errorf("failed to update plugin dependencies: %w", err)

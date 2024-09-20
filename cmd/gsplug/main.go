@@ -11,11 +11,13 @@ import (
 func main() {
 	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	buildAll := buildCmd.Bool("all", false, "Build all plugins")
-	
+
 	updateDepsCmd := flag.NewFlagSet("update-deps", flag.ExitOnError)
-	
+
+	updateVersionCmd := flag.NewFlagSet("update-version", flag.ExitOnError)
+
 	if len(os.Args) < 2 {
-		fmt.Println("Expected 'build' or 'update-deps' subcommands")
+		fmt.Println("Expected 'build', 'update-deps', or 'update-version' subcommands")
 		os.Exit(1)
 	}
 
@@ -38,7 +40,7 @@ func main() {
 				os.Exit(1)
 			}
 		}
-	
+
 	case "update-deps":
 		updateDepsCmd.Parse(os.Args[2:])
 		if updateDepsCmd.NArg() < 1 {
@@ -51,9 +53,17 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("Plugin dependencies updated successfully")
-	
+
+	case "update-version":
+		updateVersionCmd.Parse(os.Args[2:])
+		if err := gsplug.UpdateVersionFile(); err != nil {
+			fmt.Printf("Error updating version file: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Version file updated successfully")
+
 	default:
-		fmt.Println("Expected 'build' or 'update-deps' subcommands")
+		fmt.Println("Expected 'build', 'update-deps', or 'update-version' subcommands")
 		os.Exit(1)
 	}
 }
