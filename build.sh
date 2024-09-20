@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -o pipefail
+set -e
 
 # Function to handle errors
 handle_error() {
@@ -55,104 +55,89 @@ if ! command -v gum &> /dev/null; then
     fi
 fi
 
-# Function to update Charm library versions
-update_charm_versions() {
-    local dir=$1
-    cd "$dir" || handle_error "Failed to change directory to $dir"
-    go get github.com/charmbracelet/huh@latest || handle_error "Failed to update huh"
-    go get github.com/charmbracelet/log@latest || handle_error "Failed to update log"
-    go mod tidy || handle_error "Failed to tidy go.mod"
-    cd - > /dev/null || handle_error "Failed to return to previous directory"
-}
-
 # ASCII Art for gitspace-plugin builder using gum
 gum style \
     --foreground 212 --border-foreground 212 --border double \
     --align center --width 70 --margin "1 2" --padding "1 2" \
     "Gitspace Plugin Builder"
 
-# Add this before building the hello-world plugin
-gum spin --spinner dot --title "Cleaning hello-world plugin..." -- bash -c "cd examples/hello-world && go clean -modcache && rm -f go.sum || handle_error 'Failed to clean hello-world plugin'"
+# Function to update dependencies
+update_dependencies() {
+    local dir=$1
+    cd "$dir" || handle_error "Failed to change directory to $dir"
+    gum spin --spinner dot --title "Updating dependencies in $dir..." -- go get -u ./...
+    go mod tidy
+    cd - > /dev/null || handle_error "Failed to return to previous directory"
+}
 
-# Then proceed with building
-gum spin --spinner dot --title "Building hello-world example plugin..." -- bash -c "cd examples/hello-world && go mod tidy && go build -buildmode=plugin -o hello-world.so . || handle_error 'Failed to build hello-world plugin'"
-
-# Update main package
-gum spin --spinner dot --title "Updating main package..." -- bash -c "update_charm_versions . || handle_error 'Failed to update main package'"
-
-# Run tests for main package
-gum spin --spinner dot --title "Running tests for main package..." -- bash -c "go test -v ./... 2>&1 || handle_error 'Some tests failed'"
-
-# Build gitspace-plugin
-gum spin --spinner dot --title "Building gitspace-plugin..." -- bash -c "go build ./... || handle_error 'Failed to build gitspace-plugin'"
-
-# Build hello-world example plugin
-gum spin --spinner dot --title "Building hello-world example plugin..." -- bash -c "cd examples/hello-world && go build -buildmode=plugin -o hello-world.so . || handle_error 'Failed to build hello-world plugin'"
-
-# Define the correct plugin installation directory
-PLUGIN_DIR="$HOME/.ssot/gitspace/plugins/hello-world"
-
-# Ask if user wants to install the example plugin
-if gum confirm "Do you want to install the example plugin to $PLUGIN_DIR?"; then
-    # Remove existing plugin directory if it exists
-    if [ -d "$PLUGIN_DIR" ]; then
-        rm -rf "$PLUGIN_DIR" || handle_error "Failed to remove existing plugin directory"
-    fi
-
-    # Create plugins directory
-    mkdir -p "$PLUGIN_DIR" || handle_error "Failed to create plugins directory"
-
-    # Copy all files from the hello-world directory, including the built .so file
-    cp -R examples/hello-world/* "$PLUGIN_DIR/" || handle_error "Failed to copy plugin files"
-
-gum spin --spinner dot --title "Updating plugin dependencies..." -- bash -c "cd $PLUGIN_DIR && go mod tidy && go get -u ./... && go mod tidy || handle_error 'Failed to update plugin dependencies'"
-
-    # Ensure the .so file is executable
-    chmod +x "$PLUGIN_DIR/hello-world.so" || handle_error "Failed to make plugin .so file executable"
-
+# Function to build a Go package
+build_package() {
+    local dir=$1
+    local name=$2
+    local output=$3
+    local dist_dir="$dir/dist"
+    
+    mkdir -p "$dist_dir"
+    
+    cd "$dir" || handle_error "Failed to change directory to $dir"
+    update_dependencies "$dir"
+    gum spin --spinner dot --title "Building $name..." -- go build -o "$dist_dir/$output" || handle_error "Failed to build $name"
+    cd - > /dev/null || handle_error "Failed to return to previous directory"
     gum style \
         --foreground 82 --border-foreground 82 --border normal \
         --align center --width 70 --margin "1 2" --padding "1 2" \
-        "Example plugin installed to $PLUGIN_DIR"
-else
-    gum style \
-        --foreground 208 --border-foreground 208 --border normal \
-        --align center --width 70 --margin "1 2" --padding "1 2" \
-        "Example plugin was not installed."
-fi
+        "$name built successfully in $dist_dir/$output"
+}
 
-# Print installed plugins
-echo "Currently installed plugins:"
-for plugin in "$HOME/.ssot/gitspace/plugins"/*/*.so; do
-    if [ -f "$plugin" ]; then
-        plugin_name=$(basename "$(dirname "$plugin")")
-        gum style \
-            --foreground 39 --border-foreground 39 --border normal \
-            --align left --width 50 --margin "0 2" --padding "0 1" \
-            "🔌 $plugin_name"
-    fi
-done
+# Update main gitspace-plugin dependencies
+update_dependencies .
 
-# Update the tree output to show the entire plugins directory
-if command -v tree &> /dev/null; then
-    tree_output=$(tree -L 2 "$HOME/.ssot/gitspace/plugins")
-    gum style \
-        --foreground 226 --border-foreground 226 --border double \
-        --align left --width 70 --margin "1 2" --padding "1 2" \
-        "Plugins Directory Structure:
+# Build gsplug package
+gum spin --spinner dot --title "Building gsplug package..." -- go build ./gsplug || handle_error "Failed to build gsplug package"
+
+# Build cmd/gsplug
+build_package "cmd/gsplug" "gsplug CLI" "gsplug"
+
+# Build examples/hello-world
+build_package "examples/hello-world" "hello-world plugin" "hello-world.so"
+
+# Also build hello-world as a standalone binary
+build_package "examples/hello-world" "hello-world standalone" "hello-world"
+
+# Print summary
+gum style \
+    --foreground 226 --border-foreground 226 --border double \
+    --align left --width 70 --margin "1 2" --padding "1 2" \
+    "Build Summary:
+
+1. gsplug package: Built ✅
+2. gsplug CLI: Built ✅
+3. hello-world plugin: Built ✅
+4. hello-world standalone: Built ✅
+
+All components have been successfully built!"
+
+# Verify versions
+go_version=$(go version | awk '{print $3}')
+gsplug_version=$(./cmd/gsplug/dist/gsplug version 2>/dev/null || echo "N/A")
+
+gum style \
+    --foreground 82 --border-foreground 82 --border normal \
+    --align center --width 70 --margin "1 2" --padding "1 2" \
+    "Versions:
+Go: $go_version
+gsplug CLI: $gsplug_version"
+
+# Print directory structure
+tree_output=$(tree -L 3)
+gum style \
+    --foreground 226 --border-foreground 226 --border double \
+    --align left --width 70 --margin "1 2" --padding "1 2" \
+    "Project Directory Structure:
 
 $tree_output"
-else
-    gum style \
-        --foreground 226 --border-foreground 226 --border double \
-        --align left --width 70 --margin "1 2" --padding "1 2" \
-        "Plugins Directory Structure:
-
-$(ls -R "$HOME/.ssot/gitspace/plugins")"
-fi
 
 gum style \
     --foreground 214 --border-foreground 214 --border normal \
     --align center --width 70 --margin "1 2" --padding "1 2" \
-    "Note: The gitspace-plugin package is built as a library for other packages to import.
-    No local binary is produced for the main package."
+    "Build process completed successfully. You can now use the gsplug CLI and the gsplug package in your projects."

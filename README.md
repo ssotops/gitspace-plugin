@@ -1,86 +1,71 @@
-# Gitspace Plugin
+# gsplug CLI Tool
 
-![CI](https://github.com/ssotops/gitspace-plugin/actions/workflows/ci.yaml/badge.svg)
+`gsplug` is a command-line interface (CLI) tool for managing Gitspace plugins. It provides functionality for building plugins and updating their dependencies.
 
-## Overview
+## Installation
 
-Gitspace Plugin is a framework for creating plugins for the Gitspace application. It provides a standardized interface for developing, testing, and integrating custom functionalities into Gitspace.
+To install `gsplug`, follow these steps:
 
-## How it works
+1. Clone the gitspace-plugin repository:
+   ```
+   git clone https://github.com/ssotops/gitspace-plugin.git
+   ```
 
-1. Plugin Interface: The `GitspacePlugin` interface defines the methods that each plugin must implement.
-2. Plugin Loading: Plugins are dynamically loaded at runtime using Go's plugin system.
-3. Configuration: Plugins can be configured using TOML files.
-4. Integration: Loaded plugins are integrated into Gitspace's menu system and can be executed within the Gitspace environment.
+2. Navigate to the repository directory:
+   ```
+   cd gitspace-plugin
+   ```
 
-## Maintenance
+3. Build the `gsplug` tool:
+   ```
+   go build -o gsplug cmd/gsplug/main.go
+   ```
 
-### Installation
+4. (Optional) Move the `gsplug` binary to a directory in your PATH for easier access:
+   ```
+   sudo mv gsplug /usr/local/bin/
+   ```
 
-To use Gitspace Plugin in your project:
+## Usage
 
-```bash
-go get github.com/ssotops/gitspace-plugin
+### Building Plugins
+
+To build a single plugin:
+```
+gsplug build /path/to/plugin
 ```
 
-### Building
-
-To build the project and its example plugins:
-
-```bash
-./build.sh
+To build all plugins in the Gitspace plugins directory:
+```
+gsplug build -all
 ```
 
-This script will compile the main package and the example plugins, creating both `.so` files and standalone binaries.
+### Updating Plugin Dependencies
 
-### Testing
-
-To run tests for both the main package and example plugins:
-
-```bash
-./test.sh
+To update the dependencies of a plugin:
+```
+gsplug update-deps /path/to/plugin
 ```
 
-This script runs linters, unit tests, and generates coverage reports.
+## Examples
 
-## Development
-
-To create a new plugin:
-
-1. Implement the `GitspacePlugin` interface in your Go package.
-2. Compile your plugin as a Go plugin (`.so` file).
-3. Create a `gitspace-plugin.toml` configuration file for your plugin.
-4. Place the `.so` file and `.toml` file in Gitspace's plugins directory.
-
-For detailed examples, refer to the `examples/` directory in this repository.
-
-## CI/CD
-
-This project uses GitHub Actions and Dagger for continuous integration and deployment.
-
-### Running Dagger Locally
-
-To run the Dagger pipeline locally:
-
-1. Ensure you have Go 1.23.1 or later installed.
-2. Navigate to the `.github/dagger` directory:
+1. Build a specific plugin:
    ```
-   cd .github/dagger
-   ```
-3. Run the Dagger script:
-   ```
-   go run release.go
+   gsplug build ~/.ssot/gitspace/plugins/my-plugin
    ```
 
-Note: Make sure you have the necessary environment variables set, especially `GITHUB_TOKEN` if you're creating releases.
+2. Build all plugins:
+   ```
+   gsplug build -all
+   ```
 
-### GitHub Actions Workflow
+3. Update dependencies for a specific plugin:
+   ```
+   gsplug update-deps ~/.ssot/gitspace/plugins/my-plugin
+   ```
 
-The CI/CD process is automated using GitHub Actions. On each push to the `main` or `master` branch, the workflow:
+## Note
 
-1. Builds the plugin
-2. Runs tests
-3. If successful, creates a new release
+Ensure that you have the necessary permissions to access and modify the plugin directories. The tool assumes that plugins are located in the `~/.ssot/gitspace/plugins/` directory by default.
 
-You can view the workflow file at `.github/workflows/ci.yml`.
-
+For any issues or feature requests, please open an issue in the [gitspace-plugin repository](https://github.com/ssotops/gitspace-plugin).

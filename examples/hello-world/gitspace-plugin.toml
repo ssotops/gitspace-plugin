@@ -11,3 +11,7 @@ key = "hello-world"
 [[sources]]
 path = "main.go"
 entry_point = "Plugin"
+
+[build]
+binary = "dist/hello-world"
+plugin = "dist/hello-world.so"
