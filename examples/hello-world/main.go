@@ -51,7 +51,7 @@ func (p HelloWorldPlugin) GetDependencies() map[string]string {
 	return gitspace_plugin.GetSharedDependencies()
 }
 
-func (p *HelloWorldPlugin) Update(newPlugin gitspace_plugin.GitspacePlugin) {
+func (p *HelloWorldPlugin) Update(newPlugin gitspace_plugin.gsplug) {
 	if newP, ok := newPlugin.(*HelloWorldPlugin); ok {
 		*p = *newP
 	}
