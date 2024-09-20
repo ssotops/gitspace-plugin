@@ -54,7 +54,7 @@ func BuildPlugin(pluginDir string) error {
 // BuildAllPlugins builds all plugins in the Gitspace plugins directory
 func BuildAllPlugins() error {
 	pluginsDir := filepath.Join(os.Getenv("HOME"), ".ssot", "gitspace", "plugins")
-
+	
 	entries, err := os.ReadDir(pluginsDir)
 	if err != nil {
 		return fmt.Errorf("failed to read plugins directory: %w", err)

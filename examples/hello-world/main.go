@@ -1,66 +1,96 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
-	"github.com/ssotops/gitspace-plugin"
+	"github.com/ssotops/gitspace-plugin/gsplug"
 )
 
+var Plugin HelloWorldPlugin
+
 type HelloWorldPlugin struct {
-	config gitspace_plugin.PluginConfig
+	manifest *gsplug.PluginManifest
+	logger   *log.Logger
 }
 
-var Plugin = &HelloWorldPlugin{}
+func (p *HelloWorldPlugin) Init() error {
+	var err error
+	p.manifest, err = gsplug.ReadManifest("gitspace-plugin.toml")
+	if err != nil {
+		return err
+	}
+
+	p.logger = log.New(os.Stderr)
+	p.logger.SetReportCaller(true)
+
+	return nil
+}
 
 func (p HelloWorldPlugin) Name() string {
-	return p.config.Metadata.Name
+	if p.manifest != nil {
+		return p.manifest.Metadata.Name
+	}
+	return "hello-world"
 }
 
 func (p HelloWorldPlugin) Version() string {
-	return p.config.Metadata.Version
+	if p.manifest != nil {
+		return p.manifest.Metadata.Version
+	}
+	return "1.0.0"
 }
 
 func (p HelloWorldPlugin) Description() string {
-	return p.config.Metadata.Description
-}
-
-func (p HelloWorldPlugin) Run(logger *log.Logger) error {
-	logger.Info("Hello from the Hello World plugin!")
-	return nil
-}
-
-func (p HelloWorldPlugin) GetMenuOption() *gitspace_plugin.Option {
-	return &gitspace_plugin.Option{
-		Key:   "hello-world",
-		Value: "Hello World",
+	if p.manifest != nil {
+		return p.manifest.Metadata.Description
 	}
+	return "A simple Hello World plugin for Gitspace"
 }
 
-func (p HelloWorldPlugin) Standalone(args []string) error {
-	fmt.Println("Hello from the standalone Hello World plugin!")
+func (p HelloWorldPlugin) Run() error {
+	style := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		PaddingTop(1).
+		PaddingBottom(1).
+		PaddingLeft(4).
+		PaddingRight(4)
+
+	message := style.Render("Hello, World!")
+	p.logger.Info(message)
+
+	p.logger.Info("Plugin details",
+		"name", p.Name(),
+		"version", p.Version(),
+		"description", p.Description())
+
 	return nil
 }
 
-func (p *HelloWorldPlugin) SetConfig(config gitspace_plugin.PluginConfig) {
-	p.config = config
-}
-
-func (p HelloWorldPlugin) GetDependencies() map[string]string {
-	return gitspace_plugin.GetSharedDependencies()
-}
-
-func (p *HelloWorldPlugin) Update(newPlugin gitspace_plugin.gsplug) {
-	if newP, ok := newPlugin.(*HelloWorldPlugin); ok {
-		*p = *newP
+func (p HelloWorldPlugin) GetMenuOption() *gsplug.Option {
+	key := "hello-world"
+	title := "Hello World"
+	if p.manifest != nil && p.manifest.Menu.Key != "" {
+		key = p.manifest.Menu.Key
+	}
+	if p.manifest != nil && p.manifest.Menu.Title != "" {
+		title = p.manifest.Menu.Title
+	}
+	return &gsplug.Option{
+		Key:   key,
+		Value: title,
 	}
 }
 
 func main() {
-	plugin := HelloWorldPlugin{}
-	if err := plugin.Standalone(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	if err := Plugin.Init(); err != nil {
+		log.Fatal("Failed to initialize plugin", "error", err)
+	}
+
+	if err := Plugin.Run(); err != nil {
+		log.Fatal("Error running plugin", "error", err)
 	}
 }
