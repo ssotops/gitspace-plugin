@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+  "github.com/ssotops/gitspace-plugin/gsplug"
 )
 
 // BuildPlugin builds the plugin in the specified directory
