@@ -13,15 +13,15 @@ func ParsePluginConfig(pluginDir string) (PluginConfig, error) {
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return config, err
+		return config, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	err = toml.Unmarshal(data, &config)
 	if err != nil {
-		return config, err
+		return config, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Set default values if necessary
+	// Validate required fields
 	if config.Metadata.Name == "" {
 		return config, fmt.Errorf("plugin name is required")
 	}

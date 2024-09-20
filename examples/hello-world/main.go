@@ -10,20 +10,22 @@ import (
 	"github.com/ssotops/gitspace-plugin"
 )
 
-type HelloWorldPlugin struct{}
+type HelloWorldPlugin struct {
+	config gitspace_plugin.PluginConfig
+}
 
-var Plugin HelloWorldPlugin
+var Plugin = &HelloWorldPlugin{}
 
 func (p HelloWorldPlugin) Name() string {
-	return "hello-world"
+	return p.config.Metadata.Name
 }
 
 func (p HelloWorldPlugin) Version() string {
-	return "1.0.0"
+	return p.config.Metadata.Version
 }
 
 func (p HelloWorldPlugin) Description() string {
-	return "A simple Hello World plugin for Gitspace"
+	return p.config.Metadata.Description
 }
 
 func (p HelloWorldPlugin) Run(logger *log.Logger) error {
@@ -43,8 +45,8 @@ func (p HelloWorldPlugin) Standalone(args []string) error {
 	return nil
 }
 
-func (p HelloWorldPlugin) SetConfig(config gitspace_plugin.PluginConfig) {
-	// This plugin doesn't use any configuration, but we need to implement this method
+func (p *HelloWorldPlugin) SetConfig(config gitspace_plugin.PluginConfig) {
+	p.config = config
 }
 
 func (p HelloWorldPlugin) GetDependencies() map[string]string {
