@@ -66,10 +66,8 @@ gum style \
 # Function to update dependencies
 update_dependencies() {
     local dir=$1
-    cd "$dir" || handle_error "Failed to change directory to $dir"
-    gum spin --spinner dot --title "Updating dependencies..." -- go get -u ./...
+    gum spin --spinner dot --title "Updating dependencies in $dir..." -- go get -u ./...
     go mod tidy
-    cd - > /dev/null || handle_error "Failed to return to previous directory"
 }
 
 # Function to build a Go package
@@ -77,6 +75,7 @@ build_package() {
     local dir=$1
     local name=$2
     local output=$3
+    local build_mode=$4  # Can be "plugin" or empty
     local original_dir=$(pwd)
     local dist_dir="$dir/dist"
     
@@ -100,7 +99,13 @@ build_package() {
     update_dependencies .
     
     echo "Building $name..."
-    build_output=$(go build -o "$dist_dir/$output" 2>&1)
+    if [ "$build_mode" == "plugin" ]; then
+        build_cmd="go build -buildmode=plugin -o $dist_dir/$output"
+    else
+        build_cmd="go build -o $dist_dir/$output"
+    fi
+    
+    build_output=$($build_cmd 2>&1)
     build_exit_code=$?
 
     if [ $build_exit_code -eq 0 ]; then
@@ -124,22 +129,12 @@ update_dependencies .
 gum spin --spinner dot --title "Building gsplug package..." -- go build ./gsplug || handle_error "Failed to build gsplug package"
 
 # Build cmd/gsplug
-echo "Current working directory before building cmd/gsplug: $(pwd)"
-if [ -d "cmd/gsplug" ]; then
-    echo "cmd/gsplug directory exists"
-    build_package "cmd/gsplug" "gsplug CLI" "gsplug"
-else
-    echo "cmd/gsplug directory does not exist"
-    gum style \
-        --foreground 208 --border-foreground 208 --border normal \
-        --align center --width 70 --margin "1 2" --padding "1 2" \
-        "cmd/gsplug directory does not exist. Skipping build of gsplug CLI."
-fi
+build_package "cmd/gsplug" "gsplug CLI" "gsplug"
 
-# Build examples/hello-world
-build_package "examples/hello-world" "hello-world plugin" "hello-world.so"
+# Build examples/hello-world as a plugin
+build_package "examples/hello-world" "hello-world plugin" "hello-world.so" "plugin"
 
-# Also build hello-world as a standalone binary
+# Build examples/hello-world as a standalone binary
 build_package "examples/hello-world" "hello-world standalone" "hello-world"
 
 # Print summary
@@ -149,9 +144,9 @@ gum style \
     "Build Summary:
 
 1. gsplug package: Built ✅
-2. gsplug CLI: Built ✅
-3. hello-world plugin: Built ✅
-4. hello-world standalone: Built ✅
+2. gsplug CLI: Built ✅ (Located in cmd/gsplug/dist/gsplug)
+3. hello-world plugin: Built ✅ (Located in examples/hello-world/dist/hello-world.so)
+4. hello-world standalone: Built ✅ (Located in examples/hello-world/dist/hello-world)
 
 All components have been successfully built!"
 
