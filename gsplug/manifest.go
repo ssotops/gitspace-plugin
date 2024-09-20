@@ -3,7 +3,6 @@ package gsplug
 import (
 	"github.com/pelletier/go-toml/v2"
 	"os"
-	"path/filepath"
 )
 
 type PluginManifest struct {

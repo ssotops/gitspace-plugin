@@ -49,10 +49,12 @@ func publishRelease(ctx context.Context) error {
 		WithDirectory("/src", src).
 		WithWorkdir("/src").
 		WithEnvVariable("CGO_ENABLED", "1").
+		WithExec([]string{"go", "mod", "download"}).
 		WithExec([]string{
 			"go", "build",
-			"-ldflags", fmt.Sprintf("-X 'main.Version=%s'", newVersion),
+			"-buildmode=plugin",
 			"-o", "gitspace-plugin.so",
+			"./gsplug",
 		})
 
 	// Export the built plugin

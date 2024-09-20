@@ -8,6 +8,8 @@ handle_error() {
         --foreground 196 --border-foreground 196 --border normal \
         --align center --width 70 --margin "1 2" --padding "1 2" \
         "An error occurred: $1"
+    echo "Error details:"
+    echo "$2" | sed 's/^/    /'  # This indents each line of the error message
     exit 1
 }
 
@@ -65,7 +67,7 @@ gum style \
 update_dependencies() {
     local dir=$1
     cd "$dir" || handle_error "Failed to change directory to $dir"
-    gum spin --spinner dot --title "Updating dependencies in $dir..." -- go get -u ./...
+    gum spin --spinner dot --title "Updating dependencies..." -- go get -u ./...
     go mod tidy
     cd - > /dev/null || handle_error "Failed to return to previous directory"
 }
@@ -75,18 +77,44 @@ build_package() {
     local dir=$1
     local name=$2
     local output=$3
+    local original_dir=$(pwd)
     local dist_dir="$dir/dist"
+    
+    echo "Current working directory: $original_dir"
+    echo "Attempting to build package in directory: $dir"
+    
+    if [ ! -d "$dir" ]; then
+        gum style \
+            --foreground 208 --border-foreground 208 --border normal \
+            --align center --width 70 --margin "1 2" --padding "1 2" \
+            "Directory $dir does not exist. Skipping build of $name."
+        return
+    fi
     
     mkdir -p "$dist_dir"
     
+    echo "Changing to directory: $dir"
     cd "$dir" || handle_error "Failed to change directory to $dir"
-    update_dependencies "$dir"
-    gum spin --spinner dot --title "Building $name..." -- go build -o "$dist_dir/$output" || handle_error "Failed to build $name"
-    cd - > /dev/null || handle_error "Failed to return to previous directory"
-    gum style \
-        --foreground 82 --border-foreground 82 --border normal \
-        --align center --width 70 --margin "1 2" --padding "1 2" \
-        "$name built successfully in $dist_dir/$output"
+    echo "Current working directory after cd: $(pwd)"
+    
+    update_dependencies .
+    
+    echo "Building $name..."
+    build_output=$(go build -o "$dist_dir/$output" 2>&1)
+    build_exit_code=$?
+
+    if [ $build_exit_code -eq 0 ]; then
+        gum style \
+            --foreground 82 --border-foreground 82 --border normal \
+            --align center --width 70 --margin "1 2" --padding "1 2" \
+            "$name built successfully in $dist_dir/$output"
+    else
+        handle_error "Failed to build $name" "$build_output"
+    fi
+    
+    echo "Changing back to original directory"
+    cd "$original_dir" || handle_error "Failed to return to original directory"
+    echo "Current working directory after returning: $(pwd)"
 }
 
 # Update main gitspace-plugin dependencies
@@ -96,7 +124,17 @@ update_dependencies .
 gum spin --spinner dot --title "Building gsplug package..." -- go build ./gsplug || handle_error "Failed to build gsplug package"
 
 # Build cmd/gsplug
-build_package "cmd/gsplug" "gsplug CLI" "gsplug"
+echo "Current working directory before building cmd/gsplug: $(pwd)"
+if [ -d "cmd/gsplug" ]; then
+    echo "cmd/gsplug directory exists"
+    build_package "cmd/gsplug" "gsplug CLI" "gsplug"
+else
+    echo "cmd/gsplug directory does not exist"
+    gum style \
+        --foreground 208 --border-foreground 208 --border normal \
+        --align center --width 70 --margin "1 2" --padding "1 2" \
+        "cmd/gsplug directory does not exist. Skipping build of gsplug CLI."
+fi
 
 # Build examples/hello-world
 build_package "examples/hello-world" "hello-world plugin" "hello-world.so"
